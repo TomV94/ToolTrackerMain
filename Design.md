@@ -44,14 +44,38 @@ This document outlines the **technical, UX, and interaction design** for the Too
 
 ```text
 1. On app load → Redirect to /login route
-
 2. Enter credentials (username, password or scan ID if configured)
    └─ [Visual Feedback] Invalid or Success
-
 3. On success:
    ├─ Save JWT to local storage
    └─ Redirect user to Dashboard or Check-in screen (based on role)
 ```
+
+**Frontend UI Specification:**
+- The login screen is presented as a centered card with a clean, modern design.
+- At the top, a circular blue icon with the letter "T" represents the ToolTracker app.
+- Below the icon:
+  - Title: **ToolTracker Login** (bold, large font)
+  - Subtitle: "Enter your credentials to access the system" (smaller, lighter font)
+- **Username field:**
+  - Input with a user icon on the left
+  - Placeholder: "Enter username"
+  - Accessible label for screen readers
+- **Password field:**
+  - Input with a lock icon on the left
+  - Placeholder: "Enter password"
+  - Eye icon on the right to toggle password visibility
+  - Accessible label for screen readers
+- **Sign In button:**
+  - Large, high-contrast, full-width button labeled "Sign In"
+  - Keyboard accessible (Enter key submits form)
+- **Demo credentials section:**
+  - Shown below the button in smaller text
+  - Example: "Demo credentials: Admin: admin / password, User: user / password"
+- The card has rounded corners, subtle shadow, and padding for a modern look.
+- The layout is responsive and mobile-friendly, with all elements centered vertically and horizontally.
+- All fields and buttons have clear focus states for accessibility.
+- Error messages (e.g., invalid login) are shown below the fields in a clear, accessible manner.
 
 ### 4.1 Tool Check-In / Check-Out Flow
 
@@ -99,32 +123,64 @@ This document outlines the **technical, UX, and interaction design** for the Too
    └─ Confirmation with timestamp, log ID
 ```
 
-### 4.3 Dashboard Layout (Mobile)
+### 4.3 Dashboard Layout (Mobile & Desktop)
 
-* **Top Section:** Summary tiles (scrollable left-right)
-  * All currently checked-out tools
-  * Overdue tools (>24 hours)
-  * Repeat late return offenders
-  * Total tools logged today
-  * Area with most tool usage
-  * Tool returns count
-  * Tools missing >24 hours
-  * Total time lost due to tooling issues
+The dashboard provides a clear, at-a-glance overview of tool activity and user status, matching the provided UI screenshot. The layout and features are as follows:
 
-* **Middle Section:** Graph widgets
-  * Usage by area
-  * Time lost graph (bar, daily)
-  * Missing tools count
-  * Top offenders
+**Header:**
+- Top bar with:
+  - App icon (blue circle with "T") and app name ("ToolTracker") on the left
+  - Welcome message with current user and role (e.g., "Welcome, admin (admin)")
+  - Centered search bar labeled "Search tools..." for quick filtering
+  - Notification bell with badge (shows count of new notifications)
+  - Settings (gear), user profile, and logout/share icons on the right
 
-* **Bottom Section:** Lost time logs, overdue list (expandable list views)
+**Summary Section:**
+- Row of summary cards, each with an icon and key metric:
+  - Checked Out (count, box icon)
+  - Overdue (>24h) (count, warning icon, red highlight if nonzero)
+  - Repeat Offenders (count, user/group icon, orange highlight)
+  - Logged Today (count, checkmark icon, green highlight)
+  - Top Area (site name, location pin icon, purple highlight, with tool count)
+  - Returns Today (count, box/return icon)
+- Cards are visually distinct, spaced, and use color to highlight status (e.g., red for overdue)
+- All cards are horizontally scrollable on mobile
 
-**Implementation Notes:**
-- The dashboard frontend fetches all metrics from the backend via the `/api/dashboard/summary` endpoint.
-- The backend aggregates and returns all required metrics in a single API call.
-- The frontend displays a loading indicator while fetching data.
-- If the backend is unavailable, the dashboard falls back to mock data for demonstration purposes.
-- The dashboard is mobile-first, touch-friendly, and visually clear, as per design principles.
+**Action Buttons:**
+- Directly below the summary tiles, display three large, high-contrast, touch-friendly buttons:
+  1. **Loan Tool** – Navigates to the tool checkout flow (`/checkout` route)
+  2. **Return Tool** – Navigates to the tool check-in flow (`/checkin` route)
+  3. **Record Lost Time** – Navigates to the lost time logging flow (`/lost-time` route)
+- Buttons are full-width on mobile, spaced apart, and keyboard accessible
+- Each button is clearly labeled and uses color to indicate its action (e.g., blue for loan, green for return, orange/red for lost time)
+- Buttons are connected to the corresponding navigation/actions in the codebase
+
+**Checked Out Tools Table:**
+- Below the action buttons, a card/table labeled "Currently Checked Out Tools" with a box icon
+- Table columns:
+  - Tool (name and ID)
+  - User (name, user icon)
+  - Location (site/area, location pin icon)
+  - Time Out (time, clock icon)
+  - Duration (elapsed time since checkout)
+  - Status ("Active" in blue, "Overdue" in red for tools out >24h)
+- Each row shows a tool currently checked out, with all relevant details and icons
+- Status is color-coded for quick scanning
+
+**Other UI/UX Details:**
+- Clean, modern, card-based layout with clear separation between summary and detail
+- Responsive design: summary cards, buttons, and table adapt to mobile and desktop
+- All icons are visually descriptive and accessible
+- Notification and user actions are always visible in the header
+- Search bar is prominent and easy to use
+- Table rows and cards have hover/focus states for accessibility
+
+**Implementation Reference:**
+- See `client/src/pages/Dashboard.jsx` and `client/src/styles/Dashboard.css` for the current implementation
+- The dashboard is the main landing page after login for all roles
+
+**Note:**
+- This spec supersedes previous dashboard layout descriptions and should be used as the single source of truth for UI/UX and engineering
 
 ### 4.4 User Management Flow
 
@@ -229,129 +285,4 @@ All table creation should occur in pgAdmin using either SQL scripts or the GUI i
 6. **audit_logs** (for compliance)
    * `log_id` (PK, serial)
    * `user_id` (FK → users.user_id)
-   * `action` (text)
-   * `details` (jsonb)
-   * `timestamp` (timestamp)
-
-> If you're only using pgAdmin for table management, this structure is appropriate and performant. However, **do not rely solely on the GUI** for relationship constraints — use explicit `ALTER TABLE ... ADD CONSTRAINT` statements or check the Constraints tab to avoid orphan records.
-
-If the database grows or scales beyond one site, **consider moving to a migration tool like Sequelize (Node)** or **SQLAlchemy (Python)** to better version and manage your schema.
-
----
-
-## 7. REST API Endpoints (High-Level)
-
-### Authentication
-* `POST /auth/login` – Returns JWT
-
-### Tools
-* `GET /tools/:id`
-* `POST /tools/checkout`
-* `POST /tools/checkin`
-* `GET /tools/checked-out`
-* `GET /tools/locations`
-* `POST /tools/verify-ownership/:barcode`
-
-### Users
-* `GET /users/:id`
-* `POST /users/new`
-* `GET /user/current`
-
-### Transactions
-* `GET /transactions/active`
-* `GET /transactions/overdue`
-* `POST /transactions`
-
-### Lost Time
-* `POST /lost-time`
-* `GET /lost-time/report`
-
-### Dashboard
-* `GET /dashboard/summary`
-
-### Reservations
-* `POST /reservations`
-* `GET /reservations`
-* `DELETE /reservations/:id`
-
----
-
-## 8. Offline Mode Strategy
-
-* All tool/user scans stored in `IndexedDB`
-* Queued transactions marked with `syncPending = true`
-* Background sync attempts via service worker with exponential backoff
-* Sync status badge shows pending count (red bubble)
-* Local caching for tool/user scan data
-* Synchronise once back online
-
----
-
-## 9. Accessibility & Compliance
-
-* WCAG 2.1 AA standard for mobile (contrast, tap target size, audio cues)
-* No reliance on fine motor interaction (swipe gestures optional, not required)
-* Support for screen reader labels on all interactive elements
-* Auditory + visual feedback for all scan actions
-
----
-
-## 10. Security Requirements
-
-* HTTPS enforced
-* JWT token authentication
-* Input validation (client and server side)
-* Audit logs of all user actions
-* PII protection for user name and phone
-* Role-based access control
-
----
-
-## 11. Future UI Components (Planned)
-
-* Tool request system: workers request tools for pickup
-* Messaging: notify storeperson of tool need
-* Photo capture of returned tools
-* Supervisor dashboard: compliance heatmap + top offenders list
-* Component library documentation for internal design system
-* Maintenance scheduling interface
-* Notifications system:
-  * Reminders for overdue tools
-  * Supervisor alerts for lost tooling time
-  * Peer notifications if tool needed is not returned
-
----
-
-## 12. Design Assets
-
-* Tool icons: .svg pack (hammer, drill, spanner etc.)
-* Pin-drop icons for site map: SVG
-* Font: Roboto (Google Fonts)
-* Colour scheme: Yellow (#FFC107), Deep Grey (#212121), White (#FAFAFA)
-
----
-
-## 13. Performance Requirements
-
-* **Speed:** All logic must assume quick access and fast operation at a physical tool counter
-* **Efficiency:** Interface clarity critical to user adoption
-* **Mobile Optimization:** Responsive design for mobile devices
-* **Offline Capability:** PWA will support installation and offline use
-
----
-
-## 14. Final Notes
-
-This design spec reflects a first-release version aligned with construction field usability. Emphasis is placed on **speed**, **simplicity**, and **traceability**.
-
-**Key Success Metrics:**
-* Reduce tool loss rate
-* Ensure tool check-in/out is traceable to individual personnel
-* Track tool usage and location
-* Reduce lost time waiting for tools
-* Improve audit trail and compliance
-
-Ongoing feedback from storepersons and foremen will guide iterative refinement.
-
-> Document owner: UX Designer, Tool Tracker Project
-> Last updated: June 2025
+   * `
